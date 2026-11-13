@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone Occupancy Analytics Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .navbar-custom {
+            background: rgba(30, 30, 46, 0.95);
+            border-bottom: 2px solid #00a8e8;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .navbar-custom .navbar-brand {
+            font-weight: 700;
+            color: #00a8e8 !important;
+            font-size: 1.5rem;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 168, 232, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: #00a8e8;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 168, 232, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chart-container {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 168, 232, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .chart-title {
+            color: #00a8e8;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .incidents-table {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 168, 232, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .incidents-table table {
+            margin-bottom: 0;
+        }
+        
+        .incidents-table thead {
+            background: rgba(0, 168, 232, 0.15);
+            border-bottom: 2px solid rgba(0, 168, 232, 0.3);
+        }
+        
+        .incidents-table th {
+            color: #00d4ff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            border: none;
+            padding: 15px;
+        }
+        
+        .incidents-table td {
+            border: none;
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(0, 168, 232, 0.1);
+            color: #ddd;
+        }
+        
+        .incidents-table tbody tr:hover {
+            background: rgba(0, 168, 232, 0.1);
+        }
+        
+        .confidence-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .confidence-high {
+            background: rgba(0, 200, 100, 0.3);
+            color: #00ff88;
+            border: 1px solid rgba(0, 200, 100, 0.5);
+        }
+        
+        .confidence-medium {
+            background: rgba(255, 165, 0, 0.3);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 165, 0, 0.5);
+        }
+        
+        .confidence-low {
+            background: rgba(200, 50, 50, 0.3);
+            color: #ff6b6b;
+            border: 1px solid rgba(200, 50, 50, 0.5);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+        }
+        
+        .status-inactive {
+            background: #ff6b6b;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
+        }
+        
+        .filter-section {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 168, 232, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-section input,
+        .filter-section select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(0, 168, 232, 0.3);
+            color: #ecf0f1;
+        }
+        
+        .filter-section input::placeholder {
+            color: #777;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #00a8e8;
+            font-size: 1.1rem;
+        }
+        
+        .btn-primary-custom {
+            background: #00a8e8;
+            border: none;
+            color: #fff;
+        }
+        
+        .btn-primary-custom:hover {
+            background: #0096c7;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+        <div class="container-fluid">
+            <span class="navbar-brand">📊 Zone Occupancy Analytics</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="ms-auto">
+                    <span id="statusIndicator" class="status-indicator status-active"></span>
+                    <small id="systemStatus">System Active</small>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Key Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Total Incidents</div>
+                    <div class="stat-value" id="totalIncidents">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Last 24 Hours</div>
+                    <div class="stat-value" id="incidents24h">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Avg Confidence</div>
+                    <div class="stat-value" id="avgConfidence">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">High Confidence (>80%)</div>
+                    <div class="stat-value" id="highConfidenceCount">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">📈 Incidents Over Time (Last 7 Days)</div>
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Confidence Distribution</div>
+                    <canvas id="confidenceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">🕐 Peak Hours</div>
+                    <canvas id="peakHoursChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">📅 Daily Summary (Last 30 Days)</div>
+                    <canvas id="dailySummaryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Incidents Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="filter-section">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Time Range (days):</label>
+                            <select id="daysFilter" class="form-select" onchange="loadIncidents()">
+                                <option value="1">Last 24 Hours</option>
+                                <option value="7" selected>Last 7 Days</option>
+                                <option value="30">Last 30 Days</option>
+                                <option value="90">Last 90 Days</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Min Confidence:</label>
+                            <select id="confidenceFilter" class="form-select" onchange="loadIncidents()">
+                                <option value="0" selected>All</option>
+                                <option value="0.5">50%+</option>
+                                <option value="0.7">70%+</option>
+                                <option value="0.8">80%+</option>
+                                <option value="0.9">90%+</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-primary-custom w-100" onclick="loadIncidents()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="incidents-table">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Timestamp</th>
+                                <th>Confidence</th>
+                                <th>People</th>
+                                <th>Snapshot</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incidentsTableBody">
+                            <tr>
+                                <td colspan="5" class="loading">Loading incidents...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <nav class="mt-3" id="paginationNav" style="display:none;">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" id="prevPage" style="display:none;">
+                            <a class="page-link" href="#" onclick="previousPage(); return false;">← Previous</a>
+                        </li>
+                        <li class="page-item active">
+                            <span class="page-link" id="pageInfo">Page 1</span>
+                        </li>
+                        <li class="page-item" id="nextPage" style="display:none;">
+                            <a class="page-link" href="#" onclick="nextPage(); return false;">Next →</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentPage = 1;
+        let charts = {};
+        let currentDaysFilter = 7;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            loadTimeline();
+            loadConfidenceDistribution();
+            loadPeakHours();
+            loadDailySummary();
+            loadIncidents();
+            loadSystemHealth();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadStats();
+                loadIncidents();
+                loadSystemHealth();
+            }, 30000);
+        });
+
+        function loadStats() {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('totalIncidents').textContent = data.total_incidents;
+                    document.getElementById('incidents24h').textContent = data.incidents_24h;
+                    document.getElementById('avgConfidence').textContent = (data.avg_confidence * 100).toFixed(1) + '%';
+                    document.getElementById('highConfidenceCount').textContent = data.high_confidence_count;
+                });
+        }
+
+        function loadTimeline() {
+            fetch('/api/timeline')
+                .then(r => r.json())
+                .then(data => {
+                    if (charts.timeline) charts.timeline.destroy();
+                    
+                    const ctx = document.getElementById('timelineChart').getContext('2d');
+                    charts.timeline = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                label: 'Incidents',
+                                data: data.incident_counts,
+                                borderColor: '#00a8e8',
+                                backgroundColor: 'rgba(0, 168, 232, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa' }
+                                },
+                                x: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa', maxRotation: 45 }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function loadConfidenceDistribution() {
+            fetch('/api/confidence-distribution')
+                .then(r => r.json())
+                .then(data => {
+                    if (charts.confidence) charts.confidence.destroy();
+                    
+                    const ctx = document.getElementById('confidenceChart').getContext('2d');
+                    charts.confidence = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(data),
+                            datasets: [{
+                                data: Object.values(data),
+                                backgroundColor: [
+                                    '#ff6b6b', '#ffaa00', '#ffdd00', '#00cc00', '#00ff88'
+                                ],
+                                borderColor: '#1a1a2e',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { labels: { color: '#aaa' } }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function loadPeakHours() {
+            fetch('/api/peak-hours')
+                .then(r => r.json())
+                .then(data => {
+                    if (charts.peakHours) charts.peakHours.destroy();
+                    
+                    const ctx = document.getElementById('peakHoursChart').getContext('2d');
+                    charts.peakHours = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.hours,
+                            datasets: [{
+                                label: 'Incidents',
+                                data: data.counts,
+                                backgroundColor: '#00a8e8',
+                                borderColor: '#00d4ff',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa' }
+                                },
+                                x: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa' }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function loadDailySummary() {
+            fetch('/api/daily-summary')
+                .then(r => r.json())
+                .then(data => {
+                    if (charts.dailySummary) charts.dailySummary.destroy();
+                    
+                    const ctx = document.getElementById('dailySummaryChart').getContext('2d');
+                    charts.dailySummary = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.dates,
+                            datasets: [{
+                                label: 'Incidents',
+                                data: data.incident_counts,
+                                backgroundColor: '#00a8e8',
+                                borderColor: '#00d4ff',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa' }
+                                },
+                                x: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#aaa', maxRotation: 45 }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function loadIncidents() {
+            currentPage = 1;
+            currentDaysFilter = parseInt(document.getElementById('daysFilter').value);
+            const minConfidence = parseFloat(document.getElementById('confidenceFilter').value);
+            
+            fetch(`/api/incidents?days=${currentDaysFilter}&min_confidence=${minConfidence}&page=${currentPage}`)
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('incidentsTableBody');
+                    tbody.innerHTML = '';
+                    
+                    if (data.incidents.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No incidents found</td></tr>';
+                        document.getElementById('paginationNav').style.display = 'none';
+                        return;
+                    }
+                    
+                    data.incidents.forEach(incident => {
+                        const row = document.createElement('tr');
+                        const confidence = incident.phone_confidence;
+                        let confidenceBadgeClass = 'confidence-low';
+                        if (confidence >= 0.8) confidenceBadgeClass = 'confidence-high';
+                        else if (confidence >= 0.6) confidenceBadgeClass = 'confidence-medium';
+                        
+                        row.innerHTML = `
+                            <td>#${incident.incident_id || 'N/A'}</td>
+                            <td>${incident.timestamp}</td>
+                            <td>
+                                <span class="confidence-badge ${confidenceBadgeClass}">
+                                    ${(confidence * 100).toFixed(1)}%
+                                </span>
+                            </td>
+                            <td>${incident.people_in_zone}</td>
+                            <td>
+                                <a href="/api/snapshot/${incident.snapshot_file}" target="_blank" class="btn btn-sm btn-primary-custom">
+                                    View
+                                </a>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // Update pagination
+                    document.getElementById('pageInfo').textContent = `Page ${data.page} of ${data.total_pages}`;
+                    document.getElementById('prevPage').style.display = data.page > 1 ? 'block' : 'none';
+                    document.getElementById('nextPage').style.display = data.page < data.total_pages ? 'block' : 'none';
+                    document.getElementById('paginationNav').style.display = 'flex';
+                });
+        }
+
+        function nextPage() {
+            currentPage++;
+            loadIncidents();
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadIncidents();
+            }
+        }
+
+        function loadSystemHealth() {
+            fetch('/api/system-health')
+                .then(r => r.json())
+                .then(data => {
+                    const indicator = document.getElementById('statusIndicator');
+                    const status = document.getElementById('systemStatus');
+                    
+                    if (data.is_active) {
+                        indicator.className = 'status-indicator status-active';
+                        status.textContent = `Active (${data.incident_rate_per_hour} incidents/hr)`;
+                    } else {
+                        indicator.className = 'status-indicator status-inactive';
+                        status.textContent = 'Inactive';
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

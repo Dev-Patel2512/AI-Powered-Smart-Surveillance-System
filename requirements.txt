@@ -1,0 +1,4 @@
+flask==2.3.3
+ultralytics==8.0.200
+opencv-python==4.8.1.78
+winotify==0.3.5
